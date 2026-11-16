@@ -22,6 +22,8 @@ import {
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 
+import { BridgeTools, bridgeToolDefinitions } from './bridge/tools.js';
+
 // Check if debug mode is enabled
 const DEBUG_MODE: boolean = process.env.DEBUG === 'true';
 const GODOT_DEBUG_MODE: boolean = true; // Always use GODOT DEBUG MODE
@@ -68,6 +70,7 @@ class GodotServer {
   private operationsScriptPath: string;
   private validatedPaths: Map<string, boolean> = new Map();
   private strictPathValidation: boolean = false;
+  private bridgeTools: BridgeTools;
 
   /**
    * Parameter name mappings between snake_case and camelCase
@@ -131,6 +134,14 @@ class GodotServer {
       }
     }
 
+    this.bridgeTools = new BridgeTools({
+      getGodotPath: async () => {
+        if (!this.godotPath) await this.detectGodotPath();
+        return this.godotPath;
+      },
+      addonSource: join(__dirname, '..', 'addons', 'godot_mcp_bridge'),
+    });
+
     // Set the path to the operations script
     this.operationsScriptPath = join(__dirname, 'scripts', 'godot_operations.gd');
     if (debugMode) console.error(`[DEBUG] Operations script path: ${this.operationsScriptPath}`);
@@ -139,7 +150,7 @@ class GodotServer {
     this.server = new Server(
       {
         name: 'godot-mcp',
-        version: '0.1.0',
+        version: '0.2.0',
       },
       {
         capabilities: {
@@ -923,6 +934,7 @@ class GodotServer {
             required: ['projectPath'],
           },
         },
+        ...bridgeToolDefinitions,
       ],
     }));
 
@@ -958,11 +970,14 @@ class GodotServer {
           return await this.handleGetUid(request.params.arguments);
         case 'update_project_uids':
           return await this.handleUpdateProjectUids(request.params.arguments);
-        default:
+        default: {
+          const bridged = await this.bridgeTools.handle(request.params.name, request.params.arguments);
+          if (bridged) return bridged;
           throw new McpError(
             ErrorCode.MethodNotFound,
             `Unknown tool: ${request.params.name}`
           );
+        }
       }
     });
   }

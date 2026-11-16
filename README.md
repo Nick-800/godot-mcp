@@ -78,6 +78,40 @@ Godot MCP enables AI agents to launch the Godot editor, run projects, capture de
   - Get UID for specific files
   - Update UID references by resaving resources
 
+## Live Bridge (this fork)
+
+This fork adds the **Godot MCP Bridge**: an editor addon plus a game-side autoload that keep a live, localhost-only connection to the server. It adds 34 tools on top of the originals.
+
+- **Live editor** (`editor_*`): read the open scene tree; add, delete, rename and reparent nodes; set properties; attach scripts; connect signals (with stub methods written for you). Every change is undoable with Ctrl+Z. Also: open, create and save scenes, play and stop the game, take editor screenshots, pick up files changed on disk, compile-check scripts with line numbers, and read the editor log.
+- **Running game** (`game_*`): screenshots, keyboard, action, mouse and text input sequences (mouse coordinates are in screenshot pixels), the live scene tree, reading and writing properties, calling methods, evaluating expressions, the game log, and quitting.
+- **Project** (`project_*`): project settings, input map actions and autoloads. These go through the editor when it is open, otherwise Godot runs headless.
+
+### Setup
+
+1. Call `bridge_install` with your project path. It copies `addons/godot_mcp_bridge` into the project and enables the plugin and the `MCPRuntimeBridge` autoload.
+2. Open the project in the Godot editor (`launch_editor`). The bridge listens on `127.0.0.1:6510`, and a game run from the editor listens on `127.0.0.1:6511`.
+3. Optional: set `GODOT_MCP_PROJECT` in the server's environment so you can leave out `projectPath`.
+
+```json
+{
+  "mcpServers": {
+    "godot": {
+      "command": "node",
+      "args": ["/path/to/godot-mcp/build/index.js"],
+      "env": { "GODOT_PATH": "/path/to/godot", "GODOT_MCP_PROJECT": "/path/to/your/project" }
+    }
+  }
+}
+```
+
+### Security
+
+Both sockets bind to `127.0.0.1` only and require a random token stored in `<project>/.godot/mcp_bridge_token`. Web pages can reach localhost ports but can't read that file. The runtime autoload removes itself in exported games, because it only runs when the game is started with the editor binary.
+
+### Requirements
+
+Godot 4.4+. Log capture (`*_get_log`, detailed `editor_validate_scripts` errors) needs Godot 4.5+.
+
 ## Requirements
 
 - [Godot Engine](https://godotengine.org/download) installed on your system
