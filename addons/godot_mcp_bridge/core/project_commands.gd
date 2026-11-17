@@ -150,6 +150,7 @@ static func _make_event(spec: Variant) -> Variant:
 			if keycode == KEY_NONE:
 				return "Unknown key '%s'" % spec.get("key", "")
 			var event := InputEventKey.new()
+			event.device = -1  # all devices, like mappings made in the editor
 			event.physical_keycode = keycode
 			event.shift_pressed = bool(spec.get("shift", false))
 			event.ctrl_pressed = bool(spec.get("ctrl", false))
@@ -159,6 +160,7 @@ static func _make_event(spec: Variant) -> Variant:
 		"mouse_button":
 			var button = spec.get("button", "left")
 			var event := InputEventMouseButton.new()
+			event.device = -1
 			event.button_index = MOUSE_BUTTONS.get(button, int(button) if str(button).is_valid_int() else MOUSE_BUTTON_LEFT)
 			return event
 		"joy_button":
