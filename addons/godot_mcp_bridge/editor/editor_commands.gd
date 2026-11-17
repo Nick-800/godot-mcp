@@ -616,7 +616,17 @@ func _gd_files(dir: String, include_addons: bool, out: Array[String]) -> void:
 
 ## Picks up files written outside the editor: rescans the filesystem and
 ## refreshes any already-loaded script whose source changed on disk.
+## The scan runs first and is waited on, so class_name scripts added since
+## the last scan are registered before anything recompiles against them.
 func _reload_filesystem(_params: Dictionary) -> Variant:
+	var filesystem := EditorInterface.get_resource_filesystem()
+	filesystem.scan()
+	await _plugin.get_tree().process_frame
+	var frames := 0
+	while filesystem.is_scanning() and frames < 1200:
+		await _plugin.get_tree().process_frame
+		frames += 1
+	await _plugin.get_tree().process_frame
 	var files: Array[String] = []
 	_gd_files("res://", false, files)
 	var reloaded := []
@@ -629,8 +639,7 @@ func _reload_filesystem(_params: Dictionary) -> Variant:
 			script.source_code = disk
 			script.reload(true)
 			reloaded.append(path)
-	EditorInterface.get_resource_filesystem().scan()
-	return {"rescanned": true, "reloaded_scripts": reloaded}
+	return {"rescanned": not filesystem.is_scanning(), "reloaded_scripts": reloaded}
 
 
 func _validate_scripts(params: Dictionary) -> Variant:
